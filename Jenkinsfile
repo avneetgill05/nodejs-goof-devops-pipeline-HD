@@ -238,18 +238,18 @@ stage('Release') {
 
             docker network create goof-release-network 2>/dev/null || true
 
-            docker rm -f "$PROD_CONTAINER" goof-mongo-release goof-mysql-release 2>/dev/null || true
+            docker rm -f "$PROD_CONTAINER" goof-mongo goof-mysql 2>/dev/null || true
 
             docker run \
                 --detach \
-                --name goof-mongo-release \
+                --name goof-mongo \
                 --network goof-release-network \
                 mongo:4.4
 
             docker run \
                 --platform linux/amd64 \
                 --detach \
-                --name goof-mysql-release \
+                --name goof-mysql \
                 --network goof-release-network \
                 --env MYSQL_ROOT_PASSWORD=root \
                 --env MYSQL_DATABASE=acme \
@@ -275,8 +275,8 @@ stage('Release') {
                 if [ "$i" -eq 30 ]; then
                     echo "Production release failed."
                     docker logs "$PROD_CONTAINER" || true
-                    docker logs goof-mysql-release || true
-                    docker logs goof-mongo-release || true
+                    docker logs goof-mysql || true
+                    docker logs goof-mongo || true
                     exit 1
                 fi
 
