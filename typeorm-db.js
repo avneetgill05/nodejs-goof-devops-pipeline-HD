@@ -6,7 +6,7 @@ const Users = require("./entity/Users")
 typeorm.createConnection({
   name: "mysql",
   type: "mysql",
-  host: "localhost",
+  host: process.env.DOCKER === '1' ? 'goof-mysql' : 'localhost',
   port: 3306,
   username: "root",
   password: "root",

@@ -45,59 +45,80 @@ pipeline {
         }
 
         // Test Stage
-// Test Stage
-stage('Test') {
-    steps {
-        sh '''
-            set -e
 
-            node -e '
-                const assert = require("assert");
-                const fs = require("fs");
+        stage('Test') {
+            steps {
+                sh '''
+                    set -e
+                    node -e '
+                    const assert = require("assert");
+                    const fs = require("fs");
 
-                const packageJson = JSON.parse(
-                    fs.readFileSync("package.json", "utf8")
-                );
+                    const packageJson = JSON.parse(
+                      fs.readFileSync("package.json", "utf8")
+                    );
 
-                assert(packageJson.name);
-                assert(packageJson.version);
-                assert(packageJson.scripts);
-                assert(packageJson.scripts.start);
-                assert(fs.existsSync("app.js"));
-                assert(fs.existsSync("Dockerfile"));
+                    assert(packageJson.name);
+                    assert(packageJson.version);
+                    assert(packageJson.scripts);
+                    assert(packageJson.scripts.start);
+                    assert(fs.existsSync("app.js"));
+                    assert(fs.existsSync("Dockerfile"));
 
-                console.log("Application tests passed.");
-            '
+                    console.log("Application tests passed.");
+                    '
 
-            docker rm -f "$TEST_CONTAINER" 2>/dev/null || true
+                    docker network rm goof-test-network 2>/dev/null || true
+                    docker network create goof-test-network
 
-            docker run \
-                --detach \
-                --name "$TEST_CONTAINER" \
-                --publish "$TEST_PORT:3001" \
-                "$IMAGE_TAG"
+                    docker rm -f goof-mongo goof-mysql "$TEST_CONTAINER" 2>/dev/null || true
 
-            for i in $(seq 1 30); do
-                if curl --silent --fail \
-                    --max-time 3 \
-                    "http://localhost:$TEST_PORT/" > /dev/null; then
-                    echo "Integration test passed."
-                    break
-                fi
+                    docker run \
+                          --detach \
+                          --name goof-mongo \
+                          --network goof-test-network \
+                          mongo:4.4
 
-                if [ "$i" -eq 30 ]; then
-                    echo "Integration test failed."
-                    docker logs "$TEST_CONTAINER" || true
-                    exit 1
-                fi
+                    docker run \
+                          --detach \
+                          --name goof-mysql \
+                          --network goof-test-network \
+                          --env MYSQL_ROOT_PASSWORD=root \
+                          --env MYSQL_DATABASE=acme \
+                          mysql:5.7
 
-                sleep 2
-            done
+                    docker run \
+                          --detach \
+                          --name "$TEST_CONTAINER" \
+                          --network goof-test-network \
+                          --env DOCKER=1 \
+                          --publish "$TEST_PORT:3001" \
+                         "$IMAGE_TAG"
 
-            docker rm -f "$TEST_CONTAINER"
-        '''
-    }
-}
+                    for i in $(seq 1 30); do
+                          if curl --silent --fail \
+                              --max-time 3 \
+                              "http://localhost:$TEST_PORT/" > /dev/null; then
+                              echo "Integration test passed."
+                              break
+                          fi
+
+                          if [ "$i" -eq 30 ]; then
+                              echo "Integration test failed."
+                              docker logs "$TEST_CONTAINER" || true
+                              docker logs goof-mysql || true
+                              docker logs goof-mongo || true
+                              exit 1
+                          fi
+
+                          sleep 2
+                    done. 
+
+                    docker rm -f "$TEST_CONTAINER" goof-mysql goof-mongo
+                    docker network rm goof-test-network
+              '''
+            }
+        }
         
 
         // Code Quality Stage
