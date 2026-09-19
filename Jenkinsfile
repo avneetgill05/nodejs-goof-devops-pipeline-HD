@@ -123,22 +123,26 @@ pipeline {
 
         // Code Quality Stage
         stage('Code Quality') {
-            steps {
-                withSonarQubeEnv('SonarQube') {
-                    sh '''
-                        sonar-scanner \
-                            -Dsonar.projectKey=nodejs-goof-devops-pipeline-HD \
-                            -Dsonar.projectName=nodejs-goof-devops-pipeline-HD \
-                            -Dsonar.sources=. \
-                            -Dsonar.exclusions=node_modules/**,public/js/bundle.js,tests/**,exploits/**
-                    '''
-                }
+    steps {
+        script {
+            def scannerHome = tool 'SonarScanner'
 
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                }
+            withSonarQubeEnv('SonarQube') {
+                sh """
+                    ${scannerHome}/bin/sonar-scanner \
+                        -Dsonar.projectKey=nodejs-goof-devops-pipeline-HD \
+                        -Dsonar.projectName=nodejs-goof-devops-pipeline-HD \
+                        -Dsonar.sources=. \
+                        -Dsonar.exclusions=node_modules/**,public/js/bundle.js,tests/**,exploits/**
+                """
             }
         }
+
+        timeout(time: 5, unit: 'MINUTES') {
+            waitForQualityGate abortPipeline: true
+        }
+    }
+}
 
         // Security Stage
         stage('Security') {
