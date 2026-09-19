@@ -112,7 +112,7 @@ pipeline {
                           fi
 
                           sleep 2
-                    done. 
+                    done 
 
                     docker rm -f "$TEST_CONTAINER" goof-mysql goof-mongo
                     docker network rm goof-test-network
