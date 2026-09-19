@@ -80,6 +80,7 @@ pipeline {
                           mongo:4.4
 
                     docker run \
+                          --platform linux/amd64 \
                           --detach \
                           --name goof-mysql \
                           --network goof-test-network \
