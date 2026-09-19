@@ -68,8 +68,7 @@ pipeline {
                     console.log("Application tests passed.");
                     '
 
-                    docker network rm goof-test-network 2>/dev/null || true
-                    docker network create goof-test-network
+                    docker network create goof-test-network 2>/dev/null || true
 
                     docker rm -f goof-mongo goof-mysql "$TEST_CONTAINER" 2>/dev/null || true
 
