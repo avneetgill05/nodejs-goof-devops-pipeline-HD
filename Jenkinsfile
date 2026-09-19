@@ -229,53 +229,73 @@ stage('Deploy') {
 }
 
         // Release Stage
-        stage('Release') {
-            steps {
-                sh '''
-                    set -e
+stage('Release') {
+    steps {
+        sh '''
+            set -e
 
-                    docker tag "$IMAGE_TAG" "$RELEASE_TAG"
+            docker tag "$IMAGE_TAG" "$RELEASE_TAG"
 
-                    docker rm -f "$PROD_CONTAINER" 2>/dev/null || true
+            docker network create goof-release-network 2>/dev/null || true
 
-                    docker run \
-                        --detach \
-                        --restart unless-stopped \
-                        --name "$PROD_CONTAINER" \
-                        --publish "$PROD_PORT:3001" \
-                        "$RELEASE_TAG"
+            docker rm -f "$PROD_CONTAINER" goof-mongo-release goof-mysql-release 2>/dev/null || true
 
-                    for i in $(seq 1 30); do
-                        if curl --silent --fail \
-                            --max-time 3 \
-                            "http://localhost:$PROD_PORT/" > /dev/null; then
-                            echo "Production release successful."
-                            break
-                        fi
+            docker run \
+                --detach \
+                --name goof-mongo-release \
+                --network goof-release-network \
+                mongo:4.4
 
-                        if [ "$i" -eq 30 ]; then
-                            echo "Production release failed."
-                            docker logs "$PROD_CONTAINER" || true
-                            docker rm -f "$PROD_CONTAINER" || true
-                            exit 1
-                        fi
+            docker run \
+                --platform linux/amd64 \
+                --detach \
+                --name goof-mysql-release \
+                --network goof-release-network \
+                --env MYSQL_ROOT_PASSWORD=root \
+                --env MYSQL_DATABASE=acme \
+                mysql:5.7
 
-                        sleep 2
-                    done
+            docker run \
+                --detach \
+                --restart unless-stopped \
+                --name "$PROD_CONTAINER" \
+                --network goof-release-network \
+                --env DOCKER=1 \
+                --publish "$PROD_PORT:3001" \
+                "$RELEASE_TAG"
 
-                    cat > release-info.txt <<EOF
-                    Application: Goof
-                    Release: $RELEASE_TAG
-                    Source Build: $IMAGE_TAG
-                    Build Number: $BUILD_NUMBER
-                    Environment: Production
-                    Release Time: $(date)
-                    EOF
-                '''
+            for i in $(seq 1 30); do
+                if curl --silent --fail \
+                    --max-time 3 \
+                    "http://localhost:$PROD_PORT/" > /dev/null; then
+                    echo "Production release successful."
+                    break
+                fi
 
-                archiveArtifacts artifacts: 'release-info.txt', fingerprint: true
-            }
-        }
+                if [ "$i" -eq 30 ]; then
+                    echo "Production release failed."
+                    docker logs "$PROD_CONTAINER" || true
+                    docker logs goof-mysql-release || true
+                    docker logs goof-mongo-release || true
+                    exit 1
+                fi
+
+                sleep 2
+            done
+
+            cat > release-info.txt <<EOF
+            Application: Goof
+            Release: $RELEASE_TAG
+            Source Build: $IMAGE_TAG
+            Build Number: $BUILD_NUMBER
+            Environment: Production
+            Release Time: $(date)
+            EOF
+        '''
+
+        archiveArtifacts artifacts: 'release-info.txt', fingerprint: true
+    }
+}
 
         // Monitoring Stage
         stage('Monitoring') {
