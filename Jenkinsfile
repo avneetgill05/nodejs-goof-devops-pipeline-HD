@@ -178,18 +178,18 @@ stage('Deploy') {
 
             docker network create goof-deploy-network 2>/dev/null || true
 
-            docker rm -f "$TEST_CONTAINER" goof-deploy-mongo goof-deploy-mysql 2>/dev/null || true
+            docker rm -f "$TEST_CONTAINER" goof-mongo goof-mysql 2>/dev/null || true
 
             docker run \
                 --detach \
-                --name goof-deploy-mongo \
+                --name goof-mongo \
                 --network goof-deploy-network \
                 mongo:4.4
 
             docker run \
                 --platform linux/amd64 \
                 --detach \
-                --name goof-deploy-mysql \
+                --name goof-mysql \
                 --network goof-deploy-network \
                 --env MYSQL_ROOT_PASSWORD=root \
                 --env MYSQL_DATABASE=acme \
@@ -215,8 +215,8 @@ stage('Deploy') {
                 if [ "$i" -eq 30 ]; then
                     echo "Deployment failed."
                     docker logs "$TEST_CONTAINER" || true
-                    docker logs goof-deploy-mysql || true
-                    docker logs goof-deploy-mongo || true
+                    docker logs goof-mysql || true
+                    docker logs goof-mongo || true
                     exit 1
                 fi
 
