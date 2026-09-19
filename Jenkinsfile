@@ -45,58 +45,59 @@ pipeline {
         }
 
         // Test Stage
-        stage('Test') {
-            steps {
-                sh '''
-                    set -e
+stage('Test') {
+    steps {
+        sh '''
+            set -e
 
-                    node <<'NODE'
-                    const assert = require('assert');
-                    const fs = require('fs');
+            node <<'NODE'
+            const assert = require('assert');
+            const fs = require('fs');
 
-                    const packageJson = JSON.parse(
-                        fs.readFileSync('package.json', 'utf8')
-                    );
+            const packageJson = JSON.parse(
+            fs.readFileSync('package.json', 'utf8')
+            );
 
-                    assert(packageJson.name);
-                    assert(packageJson.version);
-                    assert(packageJson.scripts);
-                    assert(packageJson.scripts.start);
-                    assert(fs.existsSync('app.js'));
-                    assert(fs.existsSync('Dockerfile'));
+            assert(packageJson.name);
+            assert(packageJson.version);
+            assert(packageJson.scripts);
+            assert(packageJson.scripts.start);
+            assert(fs.existsSync('app.js'));
+            assert(fs.existsSync('Dockerfile'));
 
-                    console.log('Application tests passed.');
-                    NODE
+            console.log('Application tests passed.');
+            NODE
 
-                    docker rm -f "$TEST_CONTAINER" 2>/dev/null || true
+            docker rm -f "$TEST_CONTAINER" 2>/dev/null || true
 
-                    docker run \
-                        --detach \
-                        --name "$TEST_CONTAINER" \
-                        --publish "$TEST_PORT:3001" \
-                        "$IMAGE_TAG"
+            docker run \
+                --detach \
+                --name "$TEST_CONTAINER" \
+                --publish "$TEST_PORT:3001" \
+                "$IMAGE_TAG"
 
-                    for i in $(seq 1 30); do
-                        if curl --silent --fail \
-                            --max-time 3 \
-                            "http://localhost:$TEST_PORT/" > /dev/null; then
-                            echo "Integration test passed."
-                            break
-                        fi
+            for i in $(seq 1 30); do
+                if curl --silent --fail \
+                    --max-time 3 \
+                    "http://localhost:$TEST_PORT/" > /dev/null; then
+                    echo "Integration test passed."
+                    break
+                fi
 
-                        if [ "$i" -eq 30 ]; then
-                            echo "Integration test failed."
-                            docker logs "$TEST_CONTAINER" || true
-                            exit 1
-                        fi
+                if [ "$i" -eq 30 ]; then
+                    echo "Integration test failed."
+                    docker logs "$TEST_CONTAINER" || true
+                    exit 1
+                fi
 
-                        sleep 2
-                    done
+                sleep 2
+            done
 
-                    docker rm -f "$TEST_CONTAINER"
-                '''
-            }
+            docker rm -f "$TEST_CONTAINER"
+        '''
         }
+     }
+        
 
         // Code Quality Stage
         stage('Code Quality') {
