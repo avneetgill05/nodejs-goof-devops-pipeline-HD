@@ -2,6 +2,7 @@ pipeline {
     agent any
 
     environment {
+        PATH = "/opt/homebrew/bin:$PATH"
         IMAGE_NAME = 'goof'
         TEST_CONTAINER = 'goof-testing'
         PROD_CONTAINER = 'goof-production'
