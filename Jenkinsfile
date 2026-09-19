@@ -171,40 +171,62 @@ pipeline {
         }
 
         // Deploy Stage
-        stage('Deploy') {
-            steps {
-                sh '''
-                    set -e
+stage('Deploy') {
+    steps {
+        sh '''
+            set -e
 
-                    docker rm -f "$TEST_CONTAINER" 2>/dev/null || true
+            docker network create goof-deploy-network 2>/dev/null || true
 
-                    docker run \
-                        --detach \
-                        --restart unless-stopped \
-                        --name "$TEST_CONTAINER" \
-                        --publish "$TEST_PORT:3001" \
-                        "$IMAGE_TAG"
+            docker rm -f "$TEST_CONTAINER" goof-deploy-mongo goof-deploy-mysql 2>/dev/null || true
 
-                    for i in $(seq 1 30); do
-                        if curl --silent --fail \
-                            --max-time 3 \
-                            "http://localhost:$TEST_PORT/" > /dev/null; then
-                            echo "Testing environment deployed successfully."
-                            exit 0
-                        fi
+            docker run \
+                --detach \
+                --name goof-deploy-mongo \
+                --network goof-deploy-network \
+                mongo:4.4
 
-                        if [ "$i" -eq 30 ]; then
-                            echo "Deployment failed."
-                            docker logs "$TEST_CONTAINER" || true
-                            docker rm -f "$TEST_CONTAINER" || true
-                            exit 1
-                        fi
+            docker run \
+                --platform linux/amd64 \
+                --detach \
+                --name goof-deploy-mysql \
+                --network goof-deploy-network \
+                --env MYSQL_ROOT_PASSWORD=root \
+                --env MYSQL_DATABASE=acme \
+                mysql:5.7
 
-                        sleep 2
-                    done
-                '''
-            }
-        }
+            docker run \
+                --detach \
+                --restart unless-stopped \
+                --name "$TEST_CONTAINER" \
+                --network goof-deploy-network \
+                --env DOCKER=1 \
+                --publish "$TEST_PORT:3001" \
+                "$IMAGE_TAG"
+
+            for i in $(seq 1 30); do
+                if curl --silent --fail \
+                    --max-time 3 \
+                    "http://localhost:$TEST_PORT/" > /dev/null; then
+                    echo "Testing environment deployed successfully."
+                    break
+                fi
+
+                if [ "$i" -eq 30 ]; then
+                    echo "Deployment failed."
+                    docker logs "$TEST_CONTAINER" || true
+                    docker logs goof-deploy-mysql || true
+                    docker logs goof-deploy-mongo || true
+                    exit 1
+                fi
+
+                sleep 2
+            done
+
+            echo "Deployment health check passed."
+        '''
+    }
+}
 
         // Release Stage
         stage('Release') {
