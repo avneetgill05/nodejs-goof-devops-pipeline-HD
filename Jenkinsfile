@@ -45,28 +45,29 @@ pipeline {
         }
 
         // Test Stage
+// Test Stage
 stage('Test') {
     steps {
         sh '''
             set -e
 
-            node <<'NODE'
-            const assert = require('assert');
-            const fs = require('fs');
+            node -e '
+                const assert = require("assert");
+                const fs = require("fs");
 
-            const packageJson = JSON.parse(
-            fs.readFileSync('package.json', 'utf8')
-            );
+                const packageJson = JSON.parse(
+                    fs.readFileSync("package.json", "utf8")
+                );
 
-            assert(packageJson.name);
-            assert(packageJson.version);
-            assert(packageJson.scripts);
-            assert(packageJson.scripts.start);
-            assert(fs.existsSync('app.js'));
-            assert(fs.existsSync('Dockerfile'));
+                assert(packageJson.name);
+                assert(packageJson.version);
+                assert(packageJson.scripts);
+                assert(packageJson.scripts.start);
+                assert(fs.existsSync("app.js"));
+                assert(fs.existsSync("Dockerfile"));
 
-            console.log('Application tests passed.');
-            NODE
+                console.log("Application tests passed.");
+            '
 
             docker rm -f "$TEST_CONTAINER" 2>/dev/null || true
 
@@ -95,8 +96,8 @@ stage('Test') {
 
             docker rm -f "$TEST_CONTAINER"
         '''
-        }
-     }
+    }
+}
         
 
         // Code Quality Stage
